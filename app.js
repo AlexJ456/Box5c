@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.querySelector('.container');
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
-    
+
     const state = {
         isPlaying: false,
         count: 0,
@@ -14,8 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timeLimit: '',
         sessionComplete: false,
         timeLimitReached: false,
-        phaseTime: 4,
-        pulseStartTime: null
+        phaseTime: 4
     };
 
     let wakeLock = null;
@@ -62,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let interval;
-    let animationFrameId;
     let lastStateUpdate;
 
     async function requestWakeLock() {
@@ -106,11 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
             state.timeLimitReached = false;
             playTone();
             startInterval();
-            animate();
             requestWakeLock();
         } else {
             clearInterval(interval);
-            cancelAnimationFrame(animationFrameId);
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             releaseWakeLock();
@@ -127,7 +123,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.timeLimit = '';
         state.timeLimitReached = false;
         clearInterval(interval);
-        cancelAnimationFrame(animationFrameId);
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         releaseWakeLock();
@@ -158,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         playTone();
         startInterval();
-        animate();
         requestWakeLock();
         render();
     }
@@ -176,14 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (state.countdown === 1) {
                 state.count = (state.count + 1) % 4;
-                state.pulseStartTime = performance.now();
                 state.countdown = state.phaseTime;
                 playTone();
                 if (state.count === 3 && state.timeLimitReached) {
                     state.sessionComplete = true;
                     state.isPlaying = false;
                     clearInterval(interval);
-                    cancelAnimationFrame(animationFrameId);
                     releaseWakeLock();
                 }
             } else {
@@ -192,51 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lastStateUpdate = performance.now();
             render();
         }, 1000);
-    }
-
-    function animate() {
-        if (!state.isPlaying) return;
-        const ctx = canvas.getContext('2d');
-        const elapsed = (performance.now() - lastStateUpdate) / 1000;
-        const effectiveCountdown = state.countdown - elapsed;
-        let progress = (state.phaseTime - effectiveCountdown) / state.phaseTime;
-        progress = Math.max(0, Math.min(1, progress));
-        const phase = state.count;
-        const size = Math.min(canvas.width, canvas.height) * 0.6;
-        const left = (canvas.width - size) / 2;
-        const top = (canvas.height - size) / 2 + 120;
-        const points = [
-            {x: left, y: top + size},
-            {x: left, y: top},
-            {x: left + size, y: top},
-            {x: left + size, y: top + size}
-        ];
-        const startPoint = points[phase];
-        const endPoint = points[(phase + 1) % 4];
-        const currentX = startPoint.x + progress * (endPoint.x - startPoint.x);
-        const currentY = startPoint.y + progress * (endPoint.y - startPoint.y);
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(left, top, size, size);
-
-        let radius = 5;
-        if (state.pulseStartTime !== null) {
-            const pulseElapsed = (performance.now() - state.pulseStartTime) / 1000;
-            if (pulseElapsed < 0.5) {
-                const pulseFactor = Math.sin(Math.PI * pulseElapsed / 0.5);
-                radius = 5 + 5 * pulseFactor;
-            }
-        }
-
-        ctx.beginPath();
-        ctx.arc(currentX, currentY, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = '#ff0000';
-        ctx.fill();
-
-        animationFrameId = requestAnimationFrame(animate);
     }
 
     function render() {
